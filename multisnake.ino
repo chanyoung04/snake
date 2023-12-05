@@ -177,7 +177,7 @@ void StartSnakeMulti();
 
 void MultiGenerateFood(Coord* food, char* p1_snake_x, char* p1_snake_y, char* p2_snake_x, char* p2_snake_y, int snake_length, int P2snake_length);
 
-void MultiEatFruit(char* p1_snake_x, char* p1_snake_y, char* otherp1_snake_x, char* otherp1_snake_y, Snake* snake, Snake* othersnake, Coord* food);
+void MultiEatFruit(char* p1_snake_x, char* p1_snake_y, char* othersnake_x, char* othersnake_y, Snake* snake, Snake* othersnake, Coord* food);
 //------------
 
 // 게임 영역 크기
