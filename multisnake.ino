@@ -344,6 +344,7 @@ void StopBGM();
 void PlaySoundEffect(const int se_number, bool is_loop);
 void StopSoundEffect();
 
+int SelectSnakeHeadCount();
 void StartSnake();
 void MoveSnake(char* p1_snake_x, char* p1_snake_y, Snake* snake); 
 void DrawSnake(char* p1_snake_x, char* p1_snake_y, Snake* snake); 
@@ -378,6 +379,7 @@ void setup() {
 
 void loop() {
   int option = WAIT;
+  char snake_headcount = 0;
 
   PlayWaitAnimation();
   PrintMenu();
@@ -385,8 +387,16 @@ void loop() {
   ClearMatrix(EDGE, EDGE, MAT_C-2*EDGE, MAT_R-2*EDGE);
   switch(option){
     case SNAKE:
-      StartSnakeMulti();
-      //StartSnake();
+      snake_headcount = SelectSnakeHeadCount();
+      ClearMatrix(EDGE, EDGE, MAT_C-2*EDGE, MAT_R-2*EDGE);
+      switch(snake_headcount){
+        case 2:
+          StartSnake();
+          break;
+        case 3:
+          StartSnakeMulti();
+          break;
+      }
       break;
     case BREAK:
       StartBreakOut();
@@ -713,6 +723,37 @@ void StopSoundEffect(){
   mp3.stop();
 };
 
+int SelectSnakeHeadCount(){   //2 single,  3 multi
+int game_number = 0;
+  int btn1 = NONE;
+  int btn2 = NONE;
+  int option1 = 0;
+  int option2 = 0;
+  int data;
+
+  track_number = 1;
+  is_p1_selected = is_p2_selected = false;
+
+  while (true) {
+    btn1 = ProcessInputButton1();
+    btn2 = ProcessInputButton2();
+    PlayBGM(track_number, false);
+    option1 = CheckP1(btn1);
+    option2 = CheckP2(btn2);
+    if(option1 == option2 && option1>0){
+      break;
+    }
+  }
+  game_number = option1;
+  Serial.print("you choose : ");
+  Serial.println(game_number);
+  PlaySoundEffect(1, true);
+  delay(1500);
+  StopSoundEffect();
+  StopBGM();
+
+  return game_number;
+};
 
 void StartSnake() {
   Snake snake = {4, RIGHT, RIGHT};
@@ -817,8 +858,8 @@ bool CheckOpposite(int prev, int cur){
 };
 void GenerateFood(Coord* food, char* snake_x, char* snake_y, int snake_length) {
   while (true) {
-    food->x = 2 * (1+random(31));
-    food->y = 2 * (1+random(15));
+    food->x = 2 * (1+random(30));
+    food->y = 2 * (1+random(14));
 
     // 스네이크와 겹치는지 확인
     bool overlap = false;
@@ -880,6 +921,9 @@ void StartSnakeMulti() {
   bool is_game = true;
   bool* p_is_food = &is_food;
 
+  char winner = 0;
+  char* pwinner = &winner;
+
   for(int i=0;i<snake.length;i++){
     p1_snake_x[i] = P1_snake_init_coords[i].x;
     p1_snake_y[i] = P1_snake_init_coords[i].y;
@@ -913,7 +957,7 @@ void StartSnakeMulti() {
     if(cur_time - prev_time >= SNAKE_DELAY){
       matrix.drawRect(p1_snake_x[snake.length - 1], p1_snake_y[snake.length - 1], 2, 2, matrix.Color333(0, 0, 0));
       matrix.drawRect(p2_snake_x[P2snake.length - 1], p2_snake_y[P2snake.length - 1], 2, 2, matrix.Color333(0, 0, 0));
-      if(!MultiCheckCollision(p1_snake_x, p1_snake_y, p2_snake_x, p2_snake_y, p_snake, p_P2snake)){
+      if(!MultiCheckCollision(p1_snake_x, p1_snake_y, p2_snake_x, p2_snake_y, p_snake, p_P2snake, pwinner)){
         MoveSnake(p1_snake_x, p1_snake_y, p_snake);
         MoveSnake(p2_snake_x, p2_snake_y, p_P2snake);
         p1_snake_x[0] += (2*dx[snake.cur_dir-1]);
@@ -926,12 +970,18 @@ void StartSnakeMulti() {
       P2snake.prev_dir = P2snake.cur_dir;
       prev_time = cur_time;
     }
-    if(MultiCheckCollision(p2_snake_x, p2_snake_y, p1_snake_x, p1_snake_y, p_P2snake, p_snake)){
+    if(MultiCheckCollision(p2_snake_x, p2_snake_y, p1_snake_x, p1_snake_y, p_P2snake, p_snake, pwinner)){
       for (int i = 1; i <= P2snake.length; i++) {
         matrix.drawRect(p2_snake_x[i], p2_snake_y[i], 2, 2, matrix.Color333(7, 0, 0)); 
       }
       for (int i = 1; i <= snake.length; i++) {
         matrix.drawRect(p1_snake_x[i], p1_snake_y[i], 2, 2, matrix.Color333(7, 0, 0)); 
+      }
+      if(winner == 1){              //P1가 이겼을 때
+
+      }
+      else{                         //P2가 이겼을 때
+
       }
       break;
     }
@@ -944,35 +994,41 @@ void StartSnakeMulti() {
   StopBGM();
 };
 
-bool MultiCheckCollision(char* snake_x, char* snake_y, char* othersnake_x, char* othersnake_y, Snake* snake, Snake* othersnake){
+bool MultiCheckCollision(char* snake_x, char* snake_y, char* othersnake_x, char* othersnake_y, Snake* snake, Snake* othersnake, char *winner){
   Coord P1head = {snake_x[0], snake_y[0]};
   Coord P2head = {othersnake_x[0], othersnake_y[0]};
   int length = snake->length;
   int otherlength = othersnake->length;
   if( P1head.x < EDGE || P1head.x >= MAT_C-1-EDGE || P1head.y < EDGE || P1head.y >= MAT_R-1-EDGE){
+    *winner = 2;
     return true;
   };
   if( P2head.x < EDGE || P2head.x >= MAT_C-1-EDGE || P2head.y < EDGE || P2head.y >= MAT_R-1-EDGE){
+    *winner = 1;
     return true;
   };
 
   for(int i=1;i<length;i++){
     if(P1head.x == snake_x[i] && P1head.y == snake_y[i]){
+      *winner = 2;
       return true;
     }
   }
   for(int i=0;i<otherlength;i++){
     if(P1head.x == othersnake_x[i] && P1head.y == othersnake_y[i]){
+      *winner = 2;
       return true;
     }
   }
   for(int i=1;i<otherlength;i++){
     if(P2head.x == othersnake_x[i] && P2head.y == othersnake_y[i]){
+      *winner = 1;
       return true;
     }
   }
   for(int i=0;i<length;i++){
     if(P2head.x == snake_x[i] && P2head.y == snake_y[i]){
+      *winner = 1;
       return true;
     }
   }
