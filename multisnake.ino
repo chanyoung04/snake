@@ -35,14 +35,14 @@
 #define EFFECT_NUMBER 5
 
 #define SNAKE_DELAY 200
-#define SNAKE_1_MAX_LENGTH 419
+#define SNAKE_1_MAX_LENGTH 420
 #define SNAKE_2_MAX_LENGTH 300
 
 #define BALL_DELAY 200
 #define BRICK_NUM 20
 
-SoftwareSerial mega_serial(MEGA_TX, MEGA_RX); 
-SoftwareSerial mp3_serial(6, 7); 
+SoftwareSerial mega_serial(MEGA_TX, MEGA_RX);
+SoftwareSerial mp3_serial(6, 7);
 DFPlayerMini_Fast mp3;
 
 typedef struct Rectangle{
@@ -344,7 +344,7 @@ void StopBGM();
 void PlaySoundEffect(const int se_number, bool is_loop);
 void StopSoundEffect();
 
-int SelectSnakeHeadCount();
+int ChooseSnakePlayers();
 void StartSnake();
 void MoveSnake(char* p1_snake_x, char* p1_snake_y, Snake* snake); 
 void DrawSnake(char* p1_snake_x, char* p1_snake_y, Snake* snake); 
@@ -387,7 +387,7 @@ void loop() {
   ClearMatrix(EDGE, EDGE, MAT_C-2*EDGE, MAT_R-2*EDGE);
   switch(option){
     case SNAKE:
-      snake_headcount = SelectSnakeHeadCount();
+      snake_headcount = ChooseSnakePlayers();
       ClearMatrix(EDGE, EDGE, MAT_C-2*EDGE, MAT_R-2*EDGE);
       switch(snake_headcount){
         case 2:
@@ -723,8 +723,8 @@ void StopSoundEffect(){
   mp3.stop();
 };
 
-int SelectSnakeHeadCount(){   //2 single,  3 multi
-int game_number = 0;
+int ChooseSnakePlayers(){   //2 single,  3 multi
+  int game_number = 0;
   int btn1 = NONE;
   int btn2 = NONE;
   int option1 = 0;
