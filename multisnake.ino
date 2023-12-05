@@ -912,7 +912,7 @@ void StartSnakeMulti() {
     cur_time = millis();
     if(cur_time - prev_time >= SNAKE_DELAY){
       matrix.drawRect(p1_snake_x[snake.length - 1], p1_snake_y[snake.length - 1], 2, 2, matrix.Color333(0, 0, 0));
-      matrix.drawRect(p2_snake_x[snake.length - 1], p2_snake_y[snake.length - 1], 2, 2, matrix.Color333(0, 0, 0));
+      matrix.drawRect(p2_snake_x[P2snake.length - 1], p2_snake_y[P2snake.length - 1], 2, 2, matrix.Color333(0, 0, 0));
       if(!MultiCheckCollision(p1_snake_x, p1_snake_y, p2_snake_x, p2_snake_y, p_snake, p_P2snake)){
         MoveSnake(p1_snake_x, p1_snake_y, p_snake);
         MoveSnake(p2_snake_x, p2_snake_y, p_P2snake);
