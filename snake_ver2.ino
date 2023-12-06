@@ -24,15 +24,15 @@
 #define MAT_R 32 
 #define MAT_C 64
 #define EDGE 2
-#define DELAY_TIME 125
+#define DELAY_TIME 100
 #define RECT_COUNT 5
 #define COLOR_COUNT 5
 
 //음악 관련
 #define SEC 1000UL
 #define MINUTE 60000UL
-#define MUSIC_NUMBER 5
-#define EFFECT_NUMBER 5
+#define MUSIC_NUMBER 10
+#define EFFECT_NUMBER 10
 
 #define SNAKE_DELAY 200
 #define SNAKE_1_MAX_LENGTH 420
@@ -85,12 +85,26 @@ enum player_number {
   SINGLE = 2,
   MULTI
 };
+enum winner {
+  Player1 = 1,
+  Player2
+};
 
 //---------- 전역변수 ----------
 RGBmatrixPanel matrix(A, B, C, D, CLK, LAT, OE, false, 64);
 Rectangle title = {10, 4, MAT_C-2*10, 9};
 Rectangle menu_1 = {15, 14, MAT_C-2*15, 7};
 Rectangle menu_2 = {15, 21, MAT_C-2*15, 7};
+Coord right_arrows[2] = {
+  {menu_1.x - 2, menu_1.y + 3},
+  {menu_2.x - 2, menu_2.y + 3}
+};
+Coord left_arrows[2] = {
+  {menu_1.x + menu_1.w + 1, menu_1.y + 3},
+  {menu_2.x + menu_2.w + 1, menu_2.y + 3}
+};
+Coord cursor_1 = right_arrows[0];
+Coord cursor_2 = left_arrows[0];
 const char str[] PROGMEM = "GAME OVER";
 const char str2[] PROGMEM = "YOUR SCORE WAS:";
 const char button_names[6][10] = {
@@ -163,15 +177,16 @@ unsigned long game_music_length[MUSIC_NUMBER+1] = {
   36*SEC,
   (2*MINUTE)+2*SEC,
   (1*MINUTE)+54*SEC,
-  1*SEC
+  (2*MINUTE)+39*SEC,
+  (5*MINUTE)+43*SEC
 };
 unsigned long effect_music_length[EFFECT_NUMBER+1] = {
   0,
   2*SEC,
   5*SEC,
   2*SEC,
-  1*SEC,
   0,
+  1*SEC,
 };
 
 unsigned long bgm_prev_play_time = 0;
@@ -197,7 +212,23 @@ const int snake_title[] PROGMEM = {
     611, 613, 616, 661, 662, 663, 665, 669, 671, 673, 
     675, 678, 680, 681, 682, 
 };
+const int snake_p1win[] PROGMEM = {
+    1193, 1194, 1256, 1257, 1258, 1319, 1320, 1321, 1322, 1385, 
+    1386, 1449, 1450, 1513, 1514, 1577, 1578, 1641, 1642, 1705, 
+    1706, 1767, 1768, 1769, 1770, 1771, 1772, 1831, 1832, 1833, 
+    1834, 1835, 1836, 
+};
+const int snake_p2win[] PROGMEM = {
+    1122, 1123, 1124, 1125, 1126, 1185, 1186, 1187, 1188, 1189, 
+    1190, 1191, 1248, 1249, 1250, 1254, 1255, 1256, 1312, 1313, 
+    1319, 1320, 1383, 1384, 1446, 1447, 1448, 1508, 1509, 1510, 
+    1511, 1570, 1571, 1572, 1573, 1574, 1633, 1634, 1635, 1636, 
+    1696, 1697, 1698, 1760, 1824, 1825, 1826, 1827, 1828, 1829, 
+    1830, 1831, 1832, 
+};
 const int snake_title_num = sizeof(snake_title) / sizeof(int);
+const int snake_p1win_num = sizeof(snake_p1win) / sizeof(int);
+const int snake_p2win_num = sizeof(snake_p2win) / sizeof(int);
 char p1_snake_x[SNAKE_1_MAX_LENGTH] = {0};
 char p1_snake_y[SNAKE_1_MAX_LENGTH] = {0};
 char p2_snake_x[SNAKE_2_MAX_LENGTH] = {0};
@@ -243,6 +274,7 @@ int CheckP2(int btn2);
 void PrintObject(int* pixels, int pixel_num, int start_x, int start_y, uint16_t color);
 void ClearObject(int* pixels, int pixel_num, int start_x, int start_y);
 void UpdateMatrix();
+bool RetryGame();
 
 void PlayBGM(const int bgm_number, bool is_play_next);
 void StopBGM();
@@ -254,14 +286,14 @@ void PrintSnakeMenu();
 int ChooseSnakePlayers();
 void StartSnake();
 void MoveSnake(char* p1_snake_x, char* p1_snake_y, Snake* snake); 
-void DrawSnake(char* p1_snake_x, char* p1_snake_y, Snake* snake); 
+void DrawSnake1(char* p1_snake_x, char* p1_snake_y, Snake* p1_snake); 
+void DrawSnake2(char* p2_snake_x, char* p2_snake_y, Snake* p2_snake); 
 bool CheckCollision(char* p1_snake_x, char* p1_snake_y, Snake* snake);
 bool CheckOpposite(int prev, int cur);
 void GenerateFood(Coord* food, char* p1_snake_x, char* p1_snake_y, int snake_length);
 void EatFruit(char* p1_snake_x, char* p1_snake_y, Snake* snake, Coord* food);
 void StartSnakeMulti();
-void DrawP2Snake(char* snake_x, char* snake_y, Snake* snake);
-bool MultiCheckCollision(char* snake_x, char* snake_y, char* othersnake_x, char* othersnake_y, Snake* snake, Snake* othersnake);
+bool MultiCheckCollision(char* snake_x, char* snake_y, char* othersnake_x, char* othersnake_y, Snake* snake, Snake* othersnake, int* winner);
 void MultiGenerateFood(Coord* food, char* snake_x, char* snake_y, char* othersnake_x, char* othersnake_y, int snake_length, int P2snake_length);
 void MultiEatFruit(char* snake_x, char* snake_y, char* othersnake_x, char* othersnake_y, Snake* snake, Snake* othersnake, Coord* food);
 
@@ -272,8 +304,6 @@ void StartBreakOut();
 void InitBreakOut();
 void MoveBall();
 void DrawBricks();
-void DrawBall();
-void DrawPaddle();
 void DrawBall();
 void DrawPaddle();
 void MovePaddle() ;
@@ -288,7 +318,7 @@ void setup() {
   mega_serial.begin(BAUD_RATE);
   mp3_serial.begin(BAUD_RATE);
   mp3.begin(mp3_serial);
-  mp3.volume(16);
+  mp3.volume(10);
 
   pinMode(BTN_SRC_1, INPUT);
   pinMode(BTN_SRC_2, INPUT);
@@ -320,6 +350,7 @@ void loop() {
     default:
       break;
   }
+
   ClearMatrix(EDGE, EDGE, MAT_C-2*EDGE, MAT_R-2*EDGE);
 }
 
@@ -427,7 +458,7 @@ void PlayWaitAnimation() {
     matrix.Color333(0, 7, 0),
     matrix.Color333(2, 7, 7),
     matrix.Color333(0, 7, 7),
-    matrix.Color333(4, 7, 7),
+    matrix.Color333(0, 7, 2),
   };
   track_number = 2;
   se_number = 3;
@@ -514,12 +545,6 @@ void DrawRightArrow(int start_x, int start_y, uint16_t color){
 };
 
 int CheckP1(int btn1) {
-  Coord right_arrows[2] = {
-    {menu_1.x - 2, menu_1.y + 3},
-    {menu_2.x - 2, menu_2.y + 3}
-  };
-  static Coord cursor_1 = right_arrows[0];
-
   switch (btn1) {
     case UP:
       DrawRightArrow(right_arrows[1].x, right_arrows[1].y, matrix.Color333(0, 0, 0));
@@ -550,12 +575,6 @@ int CheckP1(int btn1) {
 };
 
 int CheckP2(int btn2) {
-  Coord left_arrows[2] = {
-    {menu_1.x + menu_1.w + 1, menu_1.y + 3},
-    {menu_2.x + menu_2.w + 1, menu_2.y + 3}
-  };
-  static Coord cursor_2 = left_arrows[0];
-
   switch (btn2) {
     case UP:
       DrawLeftArrow(left_arrows[1].x, left_arrows[1].y, matrix.Color333(0, 0, 0));
@@ -593,6 +612,25 @@ void PrintObject(const int* pixels, int pixel_num, int start_x, int start_y, uin
 
 void ClearObject(const int* pixels, int pixel_num, int start_x, int start_y) {
   PrintObject(pixels, pixel_num, start_x, start_y, matrix.Color333(0, 0, 0));
+}
+
+bool RetryGame() {
+  ClearMatrix(EDGE, EDGE, MAT_C-2*EDGE, MAT_R-2*EDGE);
+  InitMatrixEdge(matrix.Color333(0,7,7));
+  matrix.setCursor(15, 5);
+  matrix.print("Retry?");
+
+  while (true) {
+    int btn1 = ProcessInputButton1();
+    int btn2 = ProcessInputButton2();
+    if (btn1 == LEFT || btn2 == LEFT){
+      return false;
+    }
+    if (btn1 == SELECT || btn2 == SELECT) {
+      return true;
+    }
+  }
+  return false;
 }
 
 
@@ -641,7 +679,13 @@ void StopSoundEffect(){
 };
 
 void PlaySnake(){
+  bool is_snake_over = false;
   char snake_players;
+
+  cursor_1 = right_arrows[0];
+  cursor_2 = left_arrows[0];
+
+  while(!is_snake_over){
     PrintSnakeMenu();
     snake_players = ChooseSnakePlayers();
     ClearMatrix(EDGE, EDGE, MAT_C-2*EDGE, MAT_R-2*EDGE);
@@ -653,6 +697,9 @@ void PlaySnake(){
         StartSnakeMulti();
         break;
     }
+    is_snake_over = !RetryGame();
+    ClearMatrix(EDGE, EDGE, MAT_C-2*EDGE, MAT_R-2*EDGE);
+  }
 };
 
 void PrintSnakeMenu(){
@@ -716,6 +763,7 @@ void StartSnake() {
   bool is_game = true;
   bool is_collide = false;
   bool* p_is_food = &is_food;
+  track_number = 5;
 
   for(int i=0;i<snake.length;i++){
     p1_snake_x[i] = snake_init_coords[i].x;
@@ -725,7 +773,7 @@ void StartSnake() {
   matrix.drawRect(food.x, food.y, 2, 2, matrix.Color333(7, 0, 0));
 
   while(is_game){
-    PlayBGM(3, false);
+    PlayBGM(track_number, true);
     btn1 = ProcessInputButton1();
     if(!(btn1 == NONE || btn1 == SELECT || CheckOpposite(btn1, snake.prev_dir))){
       snake.cur_dir = btn1;
@@ -750,6 +798,7 @@ void StartSnake() {
       prev_time = cur_time;
     }
     if(CheckCollision(p1_snake_x, p1_snake_y, p_snake)){
+      InitMatrixEdge(matrix.Color333(7,0,0));
       StopBGM();
       PlaySoundEffect(3, true);
       for (int i = 1; i <= snake.length; i++) {
@@ -759,7 +808,7 @@ void StartSnake() {
       break;
     }
     else{
-      DrawSnake(p1_snake_x, p1_snake_y, p_snake);
+      DrawSnake1(p1_snake_x, p1_snake_y, p_snake);
     }
   }
 };
@@ -771,14 +820,23 @@ void MoveSnake(char* snake_x, char* snake_y, Snake* snake) {
   }
 }
 
-void DrawSnake(char* snake_x, char* snake_y, Snake* snake){
+void DrawSnake1(char* snake_x, char* snake_y, Snake* snake){
   int length = snake->length;
   for (int i = 0; i < length; i++) {
     Serial.print("length : ");
     Serial.println(length);
-    matrix.drawRect(snake_x[i], snake_y[i], 2, 2, (i == 0) ? matrix.Color333(7, 7, 0) : matrix.Color333(0, 7, 0));
+    matrix.drawRect(snake_x[i], snake_y[i], 2, 2, (i == 0) ? matrix.Color333(7, 7, 0) : matrix.Color333(0, 7, 0)); 
   }
-};
+}; 
+
+void DrawSnake2(char* p2_snake_x, char* p2_snake_y, Snake* p2_snake){
+  int length = p2_snake->length;
+  for (int i = 0; i < length; i++) {
+    Serial.print("length : ");
+    Serial.println(length);
+    matrix.drawRect(p2_snake_x[i], p2_snake_y[i], 2, 2, (i == 0) ? matrix.Color333(7, 7, 0) : matrix.Color333(4, 7, 0)); 
+  }
+}; 
 
 bool CheckCollision(char* snake_x, char* snake_y, Snake* snake){
   Coord head = {snake_x[0], snake_y[0]};
@@ -821,6 +879,7 @@ void GenerateFood(Coord* food, char* snake_x, char* snake_y, int snake_length) {
 void EatFruit(char* snake_x, char* snake_y, Snake* snake, Coord* food) {
   if (food->x == snake_x[0] && food->y == snake_y[0]) {
     // 과일을 먹었을 때의 처리
+    PlaySoundEffect(5, true);
     matrix.drawRect(food->x, food->y, 2, 2, matrix.Color333(0, 0, 0));
     snake->length++;
 
@@ -859,6 +918,8 @@ void StartSnakeMulti() {
   unsigned long cur_time = 0;
   int btn1 = NONE;
   int btn2 = NONE;
+  int winner = 0;
+  int* p_winner = &winner;
   bool is_food = false;
   bool is_game = true;
   bool* p_is_food = &is_food;
@@ -896,7 +957,7 @@ void StartSnakeMulti() {
     if(cur_time - prev_time >= SNAKE_DELAY){
       matrix.drawRect(p1_snake_x[snake.length - 1], p1_snake_y[snake.length - 1], 2, 2, matrix.Color333(0, 0, 0));
       matrix.drawRect(p2_snake_x[P2snake.length - 1], p2_snake_y[P2snake.length - 1], 2, 2, matrix.Color333(0, 0, 0));
-      if(!MultiCheckCollision(p1_snake_x, p1_snake_y, p2_snake_x, p2_snake_y, p_snake, p_P2snake)){
+      if(!MultiCheckCollision(p1_snake_x, p1_snake_y, p2_snake_x, p2_snake_y, p_snake, p_P2snake, p_winner)){
         MoveSnake(p1_snake_x, p1_snake_y, p_snake);
         MoveSnake(p2_snake_x, p2_snake_y, p_P2snake);
         p1_snake_x[0] += (2*dx[snake.cur_dir-1]);
@@ -909,62 +970,75 @@ void StartSnakeMulti() {
       P2snake.prev_dir = P2snake.cur_dir;
       prev_time = cur_time;
     }
-    if(MultiCheckCollision(p2_snake_x, p2_snake_y, p1_snake_x, p1_snake_y, p_P2snake, p_snake)){
+    if(MultiCheckCollision(p2_snake_x, p2_snake_y, p1_snake_x, p1_snake_y, p_P2snake, p_snake, p_winner)){
       for (int i = 1; i <= P2snake.length; i++) {
-        matrix.drawRect(p2_snake_x[i], p2_snake_y[i], 2, 2, matrix.Color333(7, 0, 0)); 
+        matrix.drawRect(p2_snake_x[i], p2_snake_y[i], 2, 2, matrix.Color333(7, 0, 0));
       }
       for (int i = 1; i <= snake.length; i++) {
-        matrix.drawRect(p1_snake_x[i], p1_snake_y[i], 2, 2, matrix.Color333(7, 0, 0)); 
+        matrix.drawRect(p1_snake_x[i], p1_snake_y[i], 2, 2, matrix.Color333(7, 0, 0));
+      }
+      if(winner = Player1){
+        for(int i=0;i<3;i++){
+          ClearMatrix(EDGE, EDGE, MAT_C-2*EDGE, MAT_R-2*EDGE);
+          delay(10);
+          PrintObject(snake_p1win, snake_p1win_num, 0, 0, matrix.Color333(0, 7, 0));
+          delay(50);
+        }
+      }
+      else if(winner = Player2){
+        for(int i=0;i<3;i++){
+          ClearMatrix(EDGE, EDGE, MAT_C-2*EDGE, MAT_R-2*EDGE);
+          delay(10);
+          PrintObject(snake_p2win, snake_p2win_num, 0, 0, matrix.Color333(4, 7, 0));
+          delay(50);
+        }
       }
       break;
     }
     else{
-      DrawSnake(p1_snake_x, p1_snake_y, p_snake);
-      DrawP2Snake(p2_snake_x, p2_snake_y, p_P2snake);
+      DrawSnake1(p1_snake_x, p1_snake_y, p_snake);
+      DrawSnake2(p2_snake_x, p2_snake_y, p_P2snake);
     }
   }
   delay(1500);
   StopBGM();
 };
 
-void DrawP2Snake(char* snake_x, char* snake_y, Snake* snake){
-  int length = snake->length;
-  for (int i = 0; i < length; i++) {
-    Serial.print("length : ");
-    Serial.println(length);
-    matrix.drawRect(snake_x[i], snake_y[i], 2, 2, (i == 0) ? matrix.Color333(0, 7, 0) : matrix.Color333(7, 7, 0));
-  }
-};
-
-bool MultiCheckCollision(char* snake_x, char* snake_y, char* othersnake_x, char* othersnake_y, Snake* snake, Snake* othersnake){
+bool MultiCheckCollision(char* snake_x, char* snake_y, char* othersnake_x, char* othersnake_y, Snake* snake, Snake* othersnake, int* winner){
   Coord P1head = {snake_x[0], snake_y[0]};
   Coord P2head = {othersnake_x[0], othersnake_y[0]};
   int length = snake->length;
   int otherlength = othersnake->length;
   if( P1head.x < EDGE || P1head.x >= MAT_C-1-EDGE || P1head.y < EDGE || P1head.y >= MAT_R-1-EDGE){
+    *winner = Player2;
     return true;
   };
   if( P2head.x < EDGE || P2head.x >= MAT_C-1-EDGE || P2head.y < EDGE || P2head.y >= MAT_R-1-EDGE){
+    *winner = Player1;
     return true;
   };
 
   for(int i=1;i<length;i++){
     if(P1head.x == snake_x[i] && P1head.y == snake_y[i]){
+      *winner = Player2;
       return true;
     }
   }
   for(int i=0;i<otherlength;i++){
     if(P1head.x == othersnake_x[i] && P1head.y == othersnake_y[i]){
+      *winner = Player2;
       return true;
     }
   }
   for(int i=1;i<otherlength;i++){
     if(P2head.x == othersnake_x[i] && P2head.y == othersnake_y[i]){
+      *winner = Player1;
       return true;
     }
   }
   for(int i=0;i<length;i++){
     if(P2head.x == snake_x[i] && P2head.y == snake_y[i]){
+      *winner = Player1;
       return true;
     }
   }
@@ -1027,6 +1101,10 @@ void MultiEatFruit(char* snake_x, char* snake_y, char* othersnake_x, char* other
 
 void PlayBreakOut(){
 	char breakout_players;
+
+  cursor_1 = right_arrows[0];
+  cursor_2 = left_arrows[0];
+
   PrintBreakOutMenu();
   breakout_players = ChooseBreakOutPlayers();
   ClearMatrix(EDGE, EDGE, MAT_C-2*EDGE, MAT_R-2*EDGE);
@@ -1087,8 +1165,8 @@ void StartBreakOut() {
   unsigned int prev_paddle_move = 0;
   unsigned int cur_paddle_move = 0;
 
-  ballX = 32;
-  ballY = 24;
+  ballX = 24;
+  ballY = 22;
 
   // 공의 이동 방향
   ballSpeedX = 1;
@@ -1103,36 +1181,41 @@ void StartBreakOut() {
 
   //점수 상태
   breakout_score = 0;
-
+  track_number = 6;
   is_breakout_game = true ;
+
   InitBreakOut();
   DrawEdge();
   DrawBricks();
-//PlayBackGroundMusicMP3(); 음악 정해서 ()안에 넣기
   DrawBall();
   DrawPaddle();
-  DrawBricks();
-//텍스트 세팅
+
   matrix.setTextSize(1);
   matrix.setTextColor(matrix.Color333(7, 7, 7));
   while (true) {
-    cur_ball_move = millis();
+    PlayBGM(track_number, true);
+    cur_ball_move = cur_paddle_move = millis();
     if(cur_ball_move - prev_ball_move >= BALL_DELAY){
       MoveBall();
       DrawBall();
+      DrawEdge();
       prev_ball_move = cur_ball_move;
     }
-    cur_paddle_move = millis();
-    if(cur_paddle_move - prev_paddle_move >= PADDLE_DELAY){
-      Serial.print("paddle : ");
-      Serial.println(paddleX);
-      MovePaddle();
-      DrawPaddle(); 
-      prev_paddle_move = cur_paddle_move;
-    }
+
+    Serial.print("paddle : ");
+    Serial.println(paddleX);
+    /*Serial.print("time : ");
+    Serial.print(prev_paddle_move);
+    Serial.print(",");
+    Serial.println(cur_paddle_move);*/
+    MovePaddle();
+    DrawPaddle(); 
+    prev_paddle_move = cur_paddle_move;
+
     if (!is_breakout_game) {
       BreakoutGameOver();
-      matrix.fillScreen(0);
+      StopBGM();
+      ClearMatrix(EDGE, EDGE, MAT_C-2*EDGE, MAT_R-2*EDGE);
       break ;
     }
   }
@@ -1161,9 +1244,12 @@ void InitBreakOut() {
   }
 }
 // 공을 움직이는 함수
+// 공을 움직이는 함수
 void MoveBall() {
   // 현재 위치에서 공을 지웁니다.
-  bool is_paddle;
+  bool is_paddle_L;
+  bool is_paddle_M;
+  bool is_paddle_R;
   bool is_side;
   bool is_ceil;
   bool is_floor;
@@ -1178,8 +1264,10 @@ void MoveBall() {
   Serial.print(ballY);
   Serial.println();
 
-  is_paddle = (ballY + 1 == paddleY) && (ballX >= paddleX-1 && ballX <= paddleX + 2);
-  is_floor = (ballY >= MAT_R - EDGE);
+  is_paddle_L = (ballY + 1 == paddleY) && (ballX >= paddleX - 2 && ballX <= paddleX);
+  is_paddle_M = (ballY + 1 == paddleY) && (ballX == paddleX);
+  is_paddle_R = (ballY + 1 == paddleY) && (ballX >= paddleX && ballX <= paddleX + 2);
+  is_floor = (ballY > MAT_R - EDGE);
   is_ceil = (ballY <= EDGE);
   is_side = (ballX <= EDGE) || (ballX >= MAT_C - EDGE - 1);
 
@@ -1187,9 +1275,19 @@ void MoveBall() {
     is_breakout_game = false;
     return;
   }
-  if (is_paddle) {
+  if (is_paddle_L) {
     ballSpeedY = -ballSpeedY;
-    ballSpeedX = -ballSpeedX;
+    ballSpeedX = -1;
+    return;
+  }
+  if (is_paddle_M) {
+    ballSpeedY = -ballSpeedY;
+    ballSpeedX = 0;
+    return;
+  }
+  if (is_paddle_R) {
+    ballSpeedY = -ballSpeedY;
+    ballSpeedX = 1;
     return;
   }
   // 벽에 부딪혔다면 방향을 변경합니다.
@@ -1200,33 +1298,54 @@ void MoveBall() {
     ballSpeedY = -ballSpeedY;
   }
 
-// 벽돌과의 충돌 검사
-  if (bricks[ballX+ballSpeedX][ballY]) {
-    if( ballX != 1 && ballX != 62 && ballY != 1) {
-    matrix.drawPixel(ballX+ballSpeedX, ballY, matrix.Color333(0, 0, 0));
+  // 벽돌과의 충돌 검사
+  int nextX = ballX + ballSpeedX;
+  int nextY = ballY + ballSpeedY;
+
+  if (bricks[nextX][ballY]) {
+    matrix.drawRect(nextX + ballSpeedX, ballY - 1, 2, 2, matrix.Color333(0, 0, 0));
+    if (ballSpeedX < 0) {
+      for (int i = 0; i > -2; i--) {
+        for (int j = 0; j < 2; j++) {
+          bricks[nextX + i][ballY - 1 + j] = false;
+        }
+      }
+    } else {
+      for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 2; j++) {
+          bricks[nextX + i][ballY - 1 + j] = false;
+        }
+      }
     }
-    ballSpeedX = -ballSpeedX ;
-    PlaySoundEffect(4,true);
-  }
-  if (bricks[ballX][ballY+ballSpeedY]) {
-    if( ballX != 1 && ballX != 62 && ballY != 1) {
-    matrix.drawPixel(ballX, ballY+ballSpeedY, matrix.Color333(0, 0, 0));
-    }    
-    ballSpeedY = -ballSpeedY ;
-    PlaySoundEffect(4,true);
-  }
-  else if (bricks[ballX+ballSpeedX][ballY] == false && bricks[ballX+ballSpeedX][ballY+ballSpeedY]) {
-    if( ballX != 1 && ballX != 62 && ballY != 1) {
-    matrix.drawPixel(ballX+ballSpeedX, ballY+ballSpeedY, matrix.Color333(0, 0, 0));
+    ballSpeedX = -ballSpeedX;
+    PlaySoundEffect(4, true);
+  } else if (bricks[ballX][nextY]) {
+    matrix.drawRect(ballX - 1, nextY - 1, 3, 2, matrix.Color333(0, 0, 0));
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 2; j++) {
+        bricks[ballX - 1 + i][nextY - 1 + j] = false;
+      }
     }
-    ballSpeedY = -ballSpeedY ;
-    ballSpeedX = -ballSpeedX ;
-    PlaySoundEffect(4,true);
-  }
-  if ( ballY + 1 == paddleY ) {
-    if ( paddleX - 1 < ballX && ballX < paddleX + 4) {
-      ballSpeedY = -ballSpeedY ;
+    ballSpeedY = -ballSpeedY;
+    PlaySoundEffect(4, true);
+  } else if (bricks[nextX][nextY]) {
+    matrix.drawRect(nextX + ballSpeedX, nextY - 1, 2, 2, matrix.Color333(0, 0, 0));
+    if (ballSpeedX < 0) {
+      for (int i = 0; i > -2; i--) {
+        for (int j = 0; j < 2; j++) {
+          bricks[nextX + i][nextY - 1 + j] = false;
+        }
+      }
+    } else {
+      for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 2; j++) {
+          bricks[nextX + i][nextY - 1 + j] = false;
+        }
+      }
     }
+    ballSpeedY = -ballSpeedY;
+    ballSpeedX = -ballSpeedX;
+    PlaySoundEffect(4, true);
   }
 }
 
@@ -1249,31 +1368,32 @@ void DrawBall() {
 
 //패들 그리는 함수
 void DrawPaddle() {
-    matrix.drawLine(paddleX-1, paddleY, paddleX+2, paddleY,  matrix.Color333(2, 7, 7));
+    matrix.drawLine(paddleX-2, paddleY, paddleX+2, paddleY,  matrix.Color333(2, 7, 7));
 }
 //패들 움직이는 함수
 void MovePaddle() {
   int btn = ProcessInputButton1();
-  if ( paddleX != EDGE && btn == LEFT) {
+  if ( paddleX != EDGE + 2 && btn == LEFT) {
     Serial.println("left");
-    matrix.drawLine(paddleX-1, paddleY, paddleX+2, paddleY,  matrix.Color333(0, 0, 0));
+    matrix.drawLine(paddleX-2, paddleY, paddleX+2, paddleY,  matrix.Color333(0, 0, 0));
     paddleX+=paddleSpeedX;
   }
-  else if ( paddleX != MAT_C-EDGE-1 && btn == RIGHT) {
+  else if ( paddleX != MAT_C-EDGE-3 && btn == RIGHT) {
     Serial.println("right");
-    matrix.drawLine(paddleX-1, paddleY, paddleX+2, paddleY,  matrix.Color333(0, 0, 0));
+    matrix.drawLine(paddleX-2, paddleY, paddleX+2, paddleY,  matrix.Color333(0, 0, 0));
     paddleX-=paddleSpeedX;
   }
  }
-
 //모서리 벽 그리기 함수
 void DrawEdge() {
-  matrix.drawLine(0,0,0,31,matrix.Color333(0,0,7));
-  matrix.drawLine(1,0,62,0,matrix.Color333(0,0,7));
-  matrix.drawLine(63,0,63,31,matrix.Color333(0,0,7));
-  matrix.drawLine(0,0,0,30,matrix.Color333(0,0,7));
-  matrix.drawLine(1,0,61,0,matrix.Color333(0,0,7));
-  matrix.drawLine(62,0,62,31,matrix.Color333(0,0,7));
+  matrix.drawLine(0,0,0,31,matrix.Color333(0,7,0));
+  matrix.drawLine(2,0,61,0,matrix.Color333(0,7,0));
+  matrix.drawLine(63,0,63,31,matrix.Color333(0,7,0));
+  matrix.drawLine(1,0,1,31,matrix.Color333(0,7,0));
+  matrix.drawLine(2,1,61,1,matrix.Color333(0,7,0));
+  matrix.drawLine(62,0,62,31,matrix.Color333(0,7,0));
+  matrix.drawLine(2,31,61,31,matrix.Color333(0,0,0));
+  matrix.drawLine(2,30,61,30,matrix.Color333(0,0,0));
 }
 
 //점수 계산 함수
