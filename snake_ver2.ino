@@ -3,6 +3,8 @@
 #include <RGBmatrixPanel.h>
 #include <DFPlayerMini_Fast.h>
 #include <SoftwareSerial.h>
+#include <string.h>
+#include <stdlib.h>
 
 //배선 및 통신 관련
 #define CLK 11 
@@ -166,6 +168,39 @@ const int multi_text[] PROGMEM = {
     1633, 1638, 1641, 1686, 1690, 1693, 1694, 1697, 1698, 1699, 
     1702, 1705, 
 };
+
+const int digit_one[] PROGMEM = {   //5
+  4,68,132,196,260,
+};
+const int digit_two[] PROGMEM = {    //17
+  0,1,2,3,4,68,128,129,130,131,132,192,256,257,258,259,260,
+};
+const int digit_three[] PROGMEM = {   //17
+  0,1,2,3,4,68,128,129,130,131,132,196,256,257,258,259,260,
+};
+const int digit_four[] PROGMEM = {    //11
+  0,4,64,68,128,129,130,131,132,196,260,
+};
+const int digit_five[] PROGMEM = {    //17
+  0,1,2,3,4,64,128,129,130,131,132,196,256,257,258,259,260,
+};
+const int digit_six[] PROGMEM = {     //18
+  0,1,2,3,4,64,128,129,130,131,132,192,196,256,257,258,259,260,
+};
+const int digit_seven[] PROGMEM = {     //10
+  0,1,2,3,4,64,68,132,196,260,
+};
+const int digit_eight[] PROGMEM = {      //19
+  0,1,2,3,4,64,68,128,129,130,131,132,192,196,256,257,258,259,260,
+};
+const int digit_nine[] PROGMEM = {      //14
+  0,1,2,3,4,64,68,128,129,130,131,132,196,260,
+};
+const int digit_zero[] PROGMEM = {     //16
+  0,1,2,3,4,64,68,128,132,192,196,256,257,258,259,260,
+};
+
+
 int title_pixels_num = sizeof(title_pixels) / sizeof(int);
 int menu_1_pixels_num = sizeof(menu_1_pixels) / sizeof(int);
 int menu_2_pixels_num = sizeof(menu_2_pixels) / sizeof(int);
@@ -301,7 +336,8 @@ void StartSnakeMulti();
 bool MultiCheckCollision(char* snake_x, char* snake_y, char* othersnake_x, char* othersnake_y, Snake* snake, Snake* othersnake);
 void MultiGenerateFood(Coord* food, char* snake_x, char* snake_y, char* othersnake_x, char* othersnake_y, int snake_length, int P2snake_length);
 void MultiEatFruit(char* snake_x, char* snake_y, char* othersnake_x, char* othersnake_y, Snake* snake, Snake* othersnake, Coord* food);
-void SnakeGameOver(int score);
+void PrintSnakeHighscore();
+void PrintDigit(char snakeHighScore, int start_x, int start_y);
 
 void PlayBreakOut();
 void PrintBreakOutMenu();
@@ -698,6 +734,7 @@ void PlaySnake(){
     switch(snake_players){
       case SINGLE:
         StartSnake();
+        PrintSnakeHighscore();
         break;
       case MULTI:
         StartSnakeMulti();
@@ -749,6 +786,7 @@ int ChooseSnakePlayers(){   //2 single,  3 multi
   return game_number;
 };
 
+int snakeScore = 0;
 void StartSnake() {
   Snake snake = {4, RIGHT, RIGHT};
   Snake* p_snake = &snake;
@@ -817,6 +855,7 @@ void StartSnake() {
       DrawSnake1(p1_snake_x, p1_snake_y, p_snake);
     }
   }
+  snakeScore = snake.length;
 };
 
 void MoveSnake(char* snake_x, char* snake_y, Snake* snake) {
@@ -1000,9 +1039,6 @@ void StartSnakeMulti() {
           PrintObject(snake_p2win, snake_p2win_num, 0, 0, matrix.Color333(4, 7, 0));
           delay(3000);
         }
-        else{        //draw
-
-        }
       }
       break;
     }
@@ -1113,9 +1149,10 @@ void MultiEatFruit(char* snake_x, char* snake_y, char* othersnake_x, char* other
     matrix.drawRect(othersnake_x[0], othersnake_y[0], 2, 2, matrix.Color333(7, 7, 0));
   }
 }
-int snakeScore = 0;
-char snakeHighScore[3][10] = {0};
-void SnakeGameOver(){
+
+char snakeHighScore[3][10] = {'0'};
+void PrintSnakeHighscore(){
+  ClearMatrix(EDGE, EDGE, MAT_C-2*EDGE, MAT_R-2*EDGE);
   for(int i=0;i<3;i++){
     if(snakeScore>atoi(snakeHighScore[i])){
       for(int j=2;j>i;j--){
@@ -1124,7 +1161,53 @@ void SnakeGameOver(){
       itoa(snakeScore,snakeHighScore[i],10);
     }
   }
+  int startScore_x = 29, startScore_y = 11;
+  for(int i=0; i<3; i++){
+    int digit =0;
+    startScore_y = startScore_y*(6*i);
+    while(snakeHighScore[i][digit] != '\0'){
+      digit++;
+    }
+    for(int j=0; j<digit; j++){
+      char scoredigit = snakeHighScore[i][j];
+      startScore_x = startScore_x*(6*j);
+      PrintDigit(scoredigit, startScore_x, startScore_y);
+    }
+  }
+  delay(5000);
 };
+void PrintDigit(char snakeHighScore, int start_x, int start_y) {
+  if(snakeHighScore == '0'){
+    PrintObject(digit_zero, 16, start_x, start_y, matrix.Color333(7, 7, 0));
+  }
+  else if(snakeHighScore == '1'){
+    PrintObject(digit_one, 5, start_x, start_y, matrix.Color333(7, 7, 0));
+  }
+  else if(snakeHighScore == '2'){
+    PrintObject(digit_two, 17, start_x, start_y, matrix.Color333(7, 7, 0));
+  }
+  else if(snakeHighScore == '3'){
+    PrintObject(digit_three, 17, start_x, start_y, matrix.Color333(7, 7, 0));
+  }
+  else if(snakeHighScore == '4'){
+    PrintObject(digit_four, 11, start_x, start_y, matrix.Color333(7, 7, 0));
+  }
+  else if(snakeHighScore == '5'){
+    PrintObject(digit_five, 17, start_x, start_y, matrix.Color333(7, 7, 0));
+  }
+  else if(snakeHighScore == '6'){
+    PrintObject(digit_six, 18, start_x, start_y, matrix.Color333(7, 7, 0));
+  }
+  else if(snakeHighScore == '7'){
+    PrintObject(digit_seven, 10, start_x, start_y, matrix.Color333(7, 7, 0));
+  }
+  else if(snakeHighScore == '8'){
+    PrintObject(digit_eight, 19, start_x, start_y, matrix.Color333(7, 7, 0));
+  }
+  else if(snakeHighScore == '9'){
+    PrintObject(digit_nine, 14, start_x, start_y, matrix.Color333(7, 7, 0));
+  }
+}
 
 void PlayBreakOut(){
   bool is_breakout_over = false;
